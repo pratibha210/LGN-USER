@@ -155,7 +155,9 @@ function Login() {
     
         const data = await response.json();
         const {token, user}  = data;
-            login({ ...user.user?.others, token });
+        console.log(user);
+        
+            login({ ...user?.others, token });
             success_notify("Login successful!");
             navigate("/");
       } catch (error) {
