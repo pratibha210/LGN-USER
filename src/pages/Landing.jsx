@@ -8,10 +8,11 @@ import thumb1 from "../assets/img/thumb1.png"
 import streamer from "../assets/img/streamer-img.png"
 import { httpRequest } from "../services/Helper"
 import { useAppContext } from "../context/AppContext"
-import { useNavigate } from "react-router-dom"
+import { useNavigate,useLocation } from "react-router-dom"
 
 const Landing = () => {
   const navigate = useNavigate()
+  const location = useLocation();
 
   const {
     setIsLoginLoading,
@@ -69,7 +70,7 @@ const Landing = () => {
   }
 
   return (
-    <>
+    <React.Fragment>
       <Header></Header>
       <LeftBar></LeftBar>
       <RightBarSmall></RightBarSmall>
@@ -164,7 +165,7 @@ const Landing = () => {
           </div>
         </div>
       </div>
-    </>
+    </React.Fragment>
   )
 }
 
