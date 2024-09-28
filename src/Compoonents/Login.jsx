@@ -5,7 +5,8 @@ import { ThreeCircles } from "react-loader-spinner"
 import { httpRequest } from "../services/Helper"
 import { useAppContext } from "../context/AppContext"
 import { useNavigate } from "react-router-dom"
-
+import { auth, googleProvider } from '../firebase/firebase.config';
+import { signInWithPopup } from 'firebase/auth';
 function Login() {
   const [loginInfo, setLoginInfo] = useState({
     userName: "",
@@ -100,6 +101,68 @@ function Login() {
     }
   }
 
+      // const signInWithGoogle = async () => {
+    //     try {
+    //         await GoogleSignin.hasPlayServices();
+    //         const response = await GoogleSignin.signIn();
+    //         if (isSuccessResponse(response)) {
+    //             console.log(response.data);
+    //             const { idToken } = response.data;
+    //             const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+    //             console.log('aaa', googleCredential)
+    //             const savedData =await auth().signInWithCredential(googleCredential);
+    //             console.log('bbb', savedData)
+    //             return savedData
+    //         } else {
+    //             console.log("error");
+
+    //         }
+    //     } catch (error) {
+    //         console.log('Error details:', error);
+    //         if (isErrorWithCode(error)) {
+    //             switch (error.code) {
+    //                 case statusCodes.IN_PROGRESS:
+    //                     console.log("Sign-in in progress");
+    //                     break;
+    //                 case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+    //                     console.log("Play services not available");
+    //                     break;
+    //                 default:
+    //                     console.log("Error code:", error.code);
+    //                     console.log("Error message:", error.message);
+    //             }
+    //         } else {
+    //             console.log("General error:", error);
+    //         }
+    //     }
+
+    // };
+
+    const signInWithGoogle = async () => {
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const userd = result.user;
+        const idToken = await userd.getIdToken();
+        const {email,displayName,uid,photoURL} = userd;
+        // Send the idToken to your backend for verification
+        const response = await fetch(`${import.meta.env.VITE_APP_LOCAL_BASE_URL}/api/auth/google-login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ idToken,email,displayName,uid,photoURL,platform:'web' }),
+        });
+    
+        const data = await response.json();
+        const {token, user}  = data;
+            login({ ...user.user?.others, token });
+            success_notify("Login successful!");
+            navigate("/");
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
   useEffect(() => {
     if (localStorage.getItem("user") && location.pathname === "/login") {
       navigate("/")
@@ -162,9 +225,9 @@ function Login() {
                 </div>
                 <div className="add-field">
                   <p className="divider">Or Log in with</p>
-                  <a href="#" className="btn white-btn">
+                  <button href="#" className="btn white-btn" onClick={()=>signInWithGoogle()}>
                     <img src={google} />
-                  </a>
+                  </button>
                   <h2>
                     Already Have an account? <a href="/register">Sign Up</a>
                   </h2>
