@@ -20,6 +20,21 @@ const Home = () => {
   const [user, setUser] = useState({})
   const [questionList, setQuestionList] = useState([])
   const [timeLeft, setTimeLeft] = useState(null);
+  const [selectedAnswer, setSelectedAnswer] = useState({});
+
+
+  //   const subscribeToChannel = (channelName, eventName, callback) => {
+  //     const channel = pusher.subscribe(channelName);
+
+  //     channel.bind(eventName, (data) => {
+  //         callback(data);
+  //     });
+
+  //     return () => {
+  //         channel.unbind(eventName);
+  //         pusher.unsubscribe(channelName);
+  //     };
+  // };
   const userData = getLocalStorageData("user")
     .then(data => {
       setUser(data)
@@ -29,12 +44,12 @@ const Home = () => {
     })
 
 
-    const [searchParams] = useSearchParams();
-    const id = searchParams.get('id'); 
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('id');
 
 
-    // console.log(id,"id");
-    
+  // console.log(id,"id");
+
 
   const getQuestionFunc = async () => {
     try {
@@ -57,6 +72,7 @@ const Home = () => {
 
   useEffect(() => {
     getQuestionFunc()
+    loadSelectedAnswers();
   }, [user?.token])
 
   useEffect(() => {
@@ -76,7 +92,7 @@ const Home = () => {
       `tournament-question-notification-${id}`,
       data => {
         console.log("Received data:", data)
-        //   setQuestionList(data);
+        setQuestionList([data]);
       }
     )
 
@@ -89,57 +105,143 @@ const Home = () => {
     }
   }, [])
 
-  const giveAnswerFunc = async (questionId, optionKey) => {
-    if(new Date (questionList[0]?.validUntil) > new Date (questionList[0]?.createdAt) ){
-    const data = {
-      optionNumber: optionKey._id,
-      userId: user?._id
-    }
+  const loadSelectedAnswers = async () => {
     try {
-      const header = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${user?.token}` // Ensure to pass the token for authentication
-      }
-      await httpRequest(
-        "PUT",
-        `api/tournament/give-answer/${questionId}`,
-        data,
-        {},
-        header
-      )
-      const updatedQuestions = questionList?.map(question => {
-        if (question._id === questionId) {
-          const updatedOptions = question.options.map(option => {
-            if (option._id === optionKey._id) {
-              return {
-                ...option,
-                users: [...option.users, user?._id]
-              }
-            }
-            return option
-          })
 
-          return {
-            ...question,
-            options: updatedOptions
-          }
-        }
-        return question
-      })
-      setQuestionList(updatedQuestions)
+      const savedAnswers = await localStorage.getItem('selectedAnswers');
+      if (savedAnswers) {
+        setSelectedAnswer(JSON.parse(savedAnswers));
+      }
     } catch (err) {
-      console.error("Error submitting answer:", err)
+      console.error('Error loading selected answers:', err.message || err);
     }
-  }else{
-    error_notify("This quiz has been expired")
+  };
+
+  const saveSelectedAnswer = async (questionId, optionId) => {
+    try {
+      // logAnalyticsEvent('Give_answer','Play');
+      const updatedAnswers = { ...selectedAnswer, [questionId]: optionId };
+      setSelectedAnswer(updatedAnswers);
+      await localStorage.setItem('selectedAnswers', JSON.stringify(updatedAnswers));
+    } catch (err) {
+      console.error('Error saving selected answer:', err.message || err);
+    }
+  };
+  const giveAnswerFunc = async (questionId, optionKey) => {
+    if (new Date(questionList[0]?.validUntil) > new Date(questionList[0]?.createdAt)) {
+      const data = {
+        optionNumber: optionKey._id,
+        userId: user?._id
+      }
+      try {
+        const header = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}` // Ensure to pass the token for authentication
+        }
+        await httpRequest(
+          "PUT",
+          `api/tournament/give-answer/${questionId}`,
+          data,
+          {},
+          header
+        )
+        const updatedQuestions = questionList?.map(question => {
+          if (question._id === questionId) {
+            const updatedOptions = question.options.map(option => {
+              if (option._id === optionKey._id) {
+                return {
+                  ...option,
+                  users: [...option.users, user?._id]
+                }
+              }
+              return option
+            })
+
+            return {
+              ...question,
+              options: updatedOptions
+            }
+          }
+          return question
+        })
+        setQuestionList(updatedQuestions)
+        saveSelectedAnswer(questionId, optionKey._id);
+      } catch (err) {
+        console.error("Error submitting answer:", err)
+      }
+    } else {
+      error_notify("This quiz has been expired")
+    }
   }
-  }
+
+
+  const handleOptionPress = (questionId, option) => {
+    if (selectedAnswer[questionId]) {
+      error_notify('You have already selected an option for this question.');
+      return;
+    }
+
+    // Ensure you have a valid user ID (e.g., from context or auth state)
+    if (user?._id) {
+      giveAnswerFunc(questionId, option);
+    } else {
+      error_notify('User not authenticated');
+    }
+  };
+  const subscribeToChannel = (channelName, eventName, callback) => {
+    const pusher = new Pusher(import.meta.env.VITE_APP_KEY, {
+      cluster: import.meta.env.VITE_APP_CLUSTER
+    })
+    const channel = pusher.subscribe(channelName);
+
+    channel.bind(eventName, (data) => {
+      callback(data);
+    });
+
+    // Return the unsubscribe function
+    return () => {
+      channel.unbind(eventName);
+      pusher.unsubscribe(channelName);
+    };
+  };
+
+  useEffect(() => {
+    // Ensure this effect only runs when the ID changes
+    const unsubscribe = subscribeToChannel(
+      `tournament-question-${id}`,
+      `tournament-question-notification-${id}`,
+      (data) => {
+        // Check if the data is truly new to avoid unnecessary updates
+        setQuestionList((prev) => {
+          if (prev.length === 0 || prev[0].id !== data.id) {
+            return [data]; // Only update if new data is different
+          }
+          return prev; // Avoid state update if data is unchanged
+        });
+        error_notify(data.message);
+      }
+    );
+
+    const expire = subscribeToChannel(
+      `expire-tournament-question`,
+      `expire-tournament-question-notification`,
+      (data) => {
+        setQuestionList(data);
+        // error_notify( data.message);
+      }
+    );
+
+    return () => {
+      unsubscribe(); // Unsubscribe from tournament question channel
+      expire(); // Unsubscribe from expire tournament question channel
+    };
+  }, []); // Only re-run when the ID changes
+
+
 
 
   useEffect(() => {
-    // Calculate the time difference in milliseconds
-
-    const timeDiff = questionList?.length > 0 && new Date (questionList[0]?.validUntil) - new Date (questionList[0]?.createdAt) ; // Milliseconds between dates
+    const timeDiff = questionList?.length > 0 && new Date(questionList[0]?.validUntil) - new Date(questionList[0]?.createdAt); // Milliseconds between dates
 
     if (timeDiff <= 0) {
       setTimeLeft(0); // Already expired
@@ -159,7 +261,7 @@ const Home = () => {
     }, 1000);
 
     return () => clearInterval(timerInterval); // Cleanup on unmount
-  }, [questionList ]);
+  }, [questionList]);
 
   // Format the time left into hours, minutes, and seconds
   const formatTimeLeft = (milliseconds) => {
@@ -183,7 +285,7 @@ const Home = () => {
         <div className="top-cnt-wrap d-flex">
           <div className="watch-win">
             <h2>WATCH, PREDICT & WIN</h2>
-            {questionList?.length > 0 &&
+            {questionList?.length > 0 ?
               questionList?.map((data, index) => {
                 return (
                   <div className="ww-area" id="index">
@@ -199,7 +301,7 @@ const Home = () => {
                         data?.options?.map(x => {
                           return (
                             <div
-                              onClick={() => giveAnswerFunc(data?._id, x)}
+                              onClick={() => handleOptionPress(data?._id, x)}
                               className="card-area d-flex align-items-center justify-content-center"
                             >
                               <img src={x?.image} alt="" />
@@ -224,7 +326,9 @@ const Home = () => {
                     </div>
                   </div>
                 )
-              })}
+              })
+              :
+              <h6 style={{color: "#fff"}}>No question added !!</h6>}
           </div>
           <div className="rewards">
             <h2>REWARDS</h2>
