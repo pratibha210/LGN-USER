@@ -36,7 +36,7 @@ const router = createBrowserRouter([
         element: <ProtectedRoute element={<Profile />} />
       },
       {
-        path: "answer",
+        path: "answer/:index",
         element: <ProtectedRoute element={<Answer />} />
       },
       {

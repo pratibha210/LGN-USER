@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import LeftBar from '../Compoonents/LeftBar';
 import Header from '../Compoonents/Header';
@@ -12,9 +12,54 @@ import pointbig from '../assets/img/point-big.png';
 import points from '../assets/img/points.png';
 import add from '../assets/img/add.png';
 import g1 from '../assets/img/g1.png';
+import { useAppContext } from '../context/AppContext';
+import { httpRequest } from '../services/Helper';
 
 
 const Profile = () => {
+    const {getLocalStorageData } = useAppContext();
+    const [userId, setUserId] = useState("");
+    const [userDetails, setUserDetails] = useState({});
+    const [prediction, setPrediction] = useState([]);
+    const [totalPages, setTotalPages] = useState(1);
+    const getPrediction = useCallback(async (page, id) => {
+        try {
+          const res = await httpRequest("GET", `api/tournament/prediction-list/${id}?page=${page}`);
+          console.log(res,"predictions");
+          setPrediction(prevPredictions => [...prevPredictions, ...res.result]);
+          setTotalPages(res.totalPages);
+        } catch (err) {
+          console.error(err);
+        }
+      }, []);
+    
+      const getUserDetails = async () => {
+        try {
+          const data = await getLocalStorageData("user");
+          console.log(data);
+          
+          if (data?._id && data?.token) {
+            setUserId(data._id);
+            const header2 = {
+              Authorization: `Bearer ${data.token}`,
+            };
+    
+            const res = await httpRequest("GET", `api/profile/user-profile/${data._id}`, {}, {}, header2);
+            console.log(res);
+            
+            setUserDetails(res?.userdetails);
+            getPrediction(1, data._id);
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      const detailsData = (index) => {
+        window.location.href = `/answer/${index}`
+      }
+      useEffect(() => {
+        getUserDetails();
+      }, []);
     return  (
         <>
          <Header></Header>
@@ -26,7 +71,7 @@ const Profile = () => {
             <div className="user-detail d-flex align-items-center justify-content-between">
                 <div className="left-wrap">
                     <img src={userimg} alt="" />
-                    <h2>Noobmaster_69</h2>
+                    <h2>{userDetails?.name}</h2>
                 </div>
                 <div className="right-wrap d-flex">
                     <div className="detail-area">
@@ -39,7 +84,7 @@ const Profile = () => {
                     </div>
                     <div className="detail-area">
                         <h2>Location</h2>
-                        <p className="d-flex align-items-center">India <img src={flag} alt="" /></p>
+                        <p className="d-flex align-items-center">{userDetails?.country} <img src={flag} alt="" /></p>
                     </div>
                     <div className="detail-area">
                         <h2>Level</h2>
@@ -116,7 +161,23 @@ const Profile = () => {
                     <div className="history-wrap">
                         <h2>History</h2>
                         <div className="league-wrap d-flex">
-                            <div className="league-area d-flex">
+                            { 
+                            prediction?.map((pred, index)=>(
+                                <div key={index} className="league-area d-flex" onClick={() => detailsData(index) }>
+                                <img src={g1} alt="" />
+                                <div className="league-detail">
+                                    <h2>{pred?.title ? pred?.title : "No Tournament Title Available"}</h2>
+                                    <div className="g-detail d-flex align-items-center justify-content-between w-100">
+                                        <p>Tier: S</p>
+                                        <h2 className="d-flex">LP Earned: <span className="d-flex"><img src={points}
+                                                    alt="" />{pred?.totalPoints+"  "} LP</span></h2>
+                                    </div>
+                                </div>
+                            </div>
+                            ))
+                                
+                            }
+                            {/* <div className="league-area d-flex">
                                 <img src={g1} alt="" />
                                 <div className="league-detail">
                                     <h2>SUPER GAMING LEAGUE</h2>
@@ -137,18 +198,7 @@ const Profile = () => {
                                                     alt="" />200 LP</span></h2>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="league-area d-flex">
-                                <img src={g1} alt="" />
-                                <div className="league-detail">
-                                    <h2>SUPER GAMING LEAGUE</h2>
-                                    <div className="g-detail d-flex align-items-center justify-content-between w-100">
-                                        <p>Tier: S</p>
-                                        <h2 className="d-flex">LP Earned: <span className="d-flex"><img src={points}
-                                                    alt="" />200 LP</span></h2>
-                                    </div>
-                                </div>
-                            </div>
+                            </div> */}
                             <a href="#">See all tourmaments</a>
                         </div>
                     </div>

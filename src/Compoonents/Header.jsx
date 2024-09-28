@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import smalllogo from "../assets/img/logo-small.png"
 import more from "../assets/img/more.png"
-import search from "../assets/img/search.png"
+import search from "../assets/img/Search.png"
 import points from "../assets/img/points.png"
 import bell from "../assets/img/bell-icon.png"
 import user from "../assets/img/user.png"
