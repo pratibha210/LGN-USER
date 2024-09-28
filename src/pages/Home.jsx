@@ -14,25 +14,33 @@ import reward3 from "../assets/img/reward3.png"
 import { httpRequest } from "../services/Helper"
 import { useAppContext } from "../context/AppContext"
 import Pusher from "pusher-js"
-
+import { useSearchParams } from 'react-router-dom';
 const Home = () => {
   const { error_notify, getLocalStorageData } = useAppContext()
-  const [user, setUser] = useState({ token: "" })
+  const [user, setUser] = useState({})
   const [questionList, setQuestionList] = useState([])
-
+  const [timeLeft, setTimeLeft] = useState(null);
   const userData = getLocalStorageData("user")
     .then(data => {
-      setUser({ token: data?.token })
+      setUser(data)
     })
     .catch(err => {
       console.log(err)
     })
 
+
+    const [searchParams] = useSearchParams();
+    const id = searchParams.get('id'); 
+
+
+    // console.log(id,"id");
+    
+
   const getQuestionFunc = async () => {
     try {
       const data = await httpRequest(
         "GET",
-        `api/v1/questions/${"66f13aa22d31ce4ceb33c669"}`,
+        `api/v1/questions/${id}`,
         {},
         {},
         {
@@ -40,7 +48,6 @@ const Home = () => {
           "Content-Type": "application/json"
         }
       )
-      console.log(data, "datadata")
       setQuestionList(data?.questions)
     } catch (error) {
       error_notify("No questions found")
@@ -61,12 +68,12 @@ const Home = () => {
 
     // Subscribe to channel
     const channel = pusher.subscribe(
-      `tournament-question-${"66f13aa22d31ce4ceb33c669"}`
+      `tournament-question-${id}`
     )
 
     // Bind to event
     channel.bind(
-      `tournament-question-notification-${"66f13aa22d31ce4ceb33c669"}`,
+      `tournament-question-notification-${id}`,
       data => {
         console.log("Received data:", data)
         //   setQuestionList(data);
@@ -76,22 +83,22 @@ const Home = () => {
     // Cleanup on unmount
     return () => {
       channel.unbind(
-        `tournament-question-notification-${"66f13aa22d31ce4ceb33c669"}`
+        `tournament-question-notification-${id}`
       )
-      pusher.unsubscribe(`tournament-question-${"66f13aa22d31ce4ceb33c669"}`)
+      pusher.unsubscribe(`tournament-question-${id}`)
     }
-  }, ["66f13aa22d31ce4ceb33c669"])
+  }, [])
 
-  const giveAnswer = async (questionId, optionKey, userId) => {
+  const giveAnswerFunc = async (questionId, optionKey) => {
+    if(new Date (questionList[0]?.validUntil) > new Date (questionList[0]?.createdAt) ){
     const data = {
       optionNumber: optionKey._id,
-      userId
+      userId: user?._id
     }
     try {
-      const { token } = await getlocalStorage("user_details")
       const header = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}` // Ensure to pass the token for authentication
+        Authorization: `Bearer ${user?.token}` // Ensure to pass the token for authentication
       }
       await httpRequest(
         "PUT",
@@ -106,7 +113,7 @@ const Home = () => {
             if (option._id === optionKey._id) {
               return {
                 ...option,
-                users: [...option.users, userId]
+                users: [...option.users, user?._id]
               }
             }
             return option
@@ -119,11 +126,53 @@ const Home = () => {
         }
         return question
       })
-      updateQuestion(updatedQuestions)
+      setQuestionList(updatedQuestions)
     } catch (err) {
       console.error("Error submitting answer:", err)
     }
+  }else{
+    error_notify("This quiz has been expired")
   }
+  }
+
+
+  useEffect(() => {
+    // Calculate the time difference in milliseconds
+
+    const timeDiff = questionList?.length > 0 && new Date (questionList[0]?.validUntil) - new Date (questionList[0]?.createdAt) ; // Milliseconds between dates
+
+    if (timeDiff <= 0) {
+      setTimeLeft(0); // Already expired
+    } else {
+      setTimeLeft(timeDiff); // Set the initial time
+    }
+
+    // Update the timer every second
+    const timerInterval = setInterval(() => {
+      setTimeLeft(prevTime => {
+        if (prevTime <= 1000) {
+          clearInterval(timerInterval); // Stop the timer if time is up
+          return 0;
+        }
+        return prevTime - 1000; // Subtract 1 second (1000 ms)
+      });
+    }, 1000);
+
+    return () => clearInterval(timerInterval); // Cleanup on unmount
+  }, [questionList ]);
+
+  // Format the time left into hours, minutes, and seconds
+  const formatTimeLeft = (milliseconds) => {
+    if (milliseconds <= 0) {
+      return "Expired";
+    }
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
 
   return (
     <>
@@ -142,6 +191,7 @@ const Home = () => {
                       <h3>{data?.question}</h3>
                       <div className="timer-right">
                         <p>Pick up ends in</p>
+                        /<p> {timeLeft !== null ? formatTimeLeft(timeLeft) : 'Loading...'}</p>
                       </div>
                     </div>
                     <div className="card-wrap d-flex ">
@@ -149,11 +199,11 @@ const Home = () => {
                         data?.options?.map(x => {
                           return (
                             <div
-                              onClick={() => giveAnswerFunc(data, x)}
+                              onClick={() => giveAnswerFunc(data?._id, x)}
                               className="card-area d-flex align-items-center justify-content-center"
                             >
                               <img src={x?.image} alt="" />
-                              <h3 className="active">{x?.text}</h3>
+                              <h3 className={[x?.users?.includes(user?._id) && "active"]}>{x?.text}</h3>
                             </div>
                           )
                         })}

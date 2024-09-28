@@ -8,10 +8,11 @@ import thumb1 from "../assets/img/thumb1.png"
 import streamer from "../assets/img/streamer-img.png"
 import { httpRequest } from "../services/Helper"
 import { useAppContext } from "../context/AppContext"
-import { useNavigate } from "react-router-dom"
+import { useNavigate,useLocation } from "react-router-dom"
 
 const Landing = () => {
   const navigate = useNavigate()
+  const location = useLocation();
 
   const {
     setIsLoginLoading,
@@ -59,17 +60,17 @@ const Landing = () => {
   }, [user?.token])
 
   const goToDetails = id => {
-    // window.location.href= `/home?id=${id}`
-    if(id){
-    navigate(`leaderboard/${id}`)
-    }else{
-        console.log("No id found");
-
-    }
+    window.location.href = `/home?id=${id}`
+    // if(id){
+    //   navigate(`/home?id=${id}`)
+    //   window.location.reload();
+    //     }else{
+    //     console.log("No id found");
+    // }
   }
 
   return (
-    <>
+    <React.Fragment>
       <Header></Header>
       <LeftBar></LeftBar>
       <RightBarSmall></RightBarSmall>
@@ -164,7 +165,7 @@ const Landing = () => {
           </div>
         </div>
       </div>
-    </>
+    </React.Fragment>
   )
 }
 

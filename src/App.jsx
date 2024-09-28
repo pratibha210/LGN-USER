@@ -23,7 +23,7 @@ const router = createBrowserRouter([
         element: <ProtectedRoute element={<Landing />} />
       },
       {
-        path: "home/:id",
+        path: "home",
         element: <ProtectedRoute element={<Home />} />
       },
 
