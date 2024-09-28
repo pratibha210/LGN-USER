@@ -59,13 +59,13 @@ const Landing = () => {
   }, [user?.token])
 
   const goToDetails = id => {
-    // window.location.href= `/home?id=${id}`
-    if(id){
-    navigate(`leaderboard/${id}`)
-    }else{
-        console.log("No id found");
+    window.location.href= `/home/${id}`
+    // if(id){
+    // navigate(`leaderboard/${id}`)
+    // }else{
+    //     console.log("No id found");
 
-    }
+    // }
   }
 
   return (

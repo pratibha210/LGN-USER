@@ -14,19 +14,50 @@ import reward3 from "../assets/img/reward3.png"
 import { httpRequest } from "../services/Helper"
 import { useAppContext } from "../context/AppContext"
 import Pusher from "pusher-js"
+import { useParams } from "react-router-dom"
 
 const Home = () => {
-  const { error_notify, getLocalStorageData } = useAppContext()
+  const {success_notify, error_notify, getLocalStorageData } = useAppContext();
   const [user, setUser] = useState({ token: "" })
   const [questionList, setQuestionList] = useState([])
-
-  const userData = getLocalStorageData("user")
+  const [userData, setUserData] = useState({});
+  const [tournamentData, setTournamentData] = useState({});
+  const { id } = useParams();
+  // console.log(location.pa);
+  
+  getLocalStorageData("user")
     .then(data => {
       setUser({ token: data?.token })
     })
     .catch(err => {
       console.log(err)
     })
+
+  const tournamentDetails = async() => {
+    getLocalStorageData('user').then((data) => {
+      const header2 = {
+        Authorization: "Bearer " + (data ? data.token : ''),
+      };
+
+        httpRequest("GET", `api/tournament/get-tournament-details/${id}`, {}, {}, header2)
+        .then((res) => {
+          console.log(res,"hfkjsdhkjf");
+          setTournamentData(res.tournament);
+          setUserData(res.userdetails);
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    }).catch((err) => {
+      console.log(err, "tournament details error");
+    });
+  };
+
+  useEffect(() => {
+    tournamentDetails();
+  }, [id]);
+
+
 
   const getQuestionFunc = async () => {
     try {
@@ -129,7 +160,7 @@ const Home = () => {
     <>
       <Header></Header>
       <LeftBar></LeftBar>
-      <RightBar></RightBar>
+      <RightBar userDetails={userData}></RightBar>
       <div className="stream-content">
         <div className="top-cnt-wrap d-flex">
           <div className="watch-win">
@@ -207,24 +238,21 @@ const Home = () => {
           </div>
         </div>
         <div className="stream-area">
-          <iframe
-            width="965"
-            height="900"
-            src="https://www.youtube.com/embed/OSQ0jdfeYEU?si=q7xm2AZiFfe4BKz1"
-          ></iframe>
+          <iframe width="965" height="900" src={tournamentData?.streaming_link}>
+          </iframe>
         </div>
         <div className="bottom-area d-flex justify-content-between align-items-start">
           <div className="left-wrap">
             <div className="streamer-detail d-flex align-items-center">
               <img src={streamer} alt="" />
               <div className="detail">
-                <h2>Streamer Name</h2>
-                <p>300 Followers</p>
+                <h2>{userData?.name}</h2>
+                <p>{userData?.followerCount} Followers</p>
               </div>
             </div>
             <div className="stream-title">
               <h2>Stream Title</h2>
-              <p>Playing PUBG: Battlegrounds</p>
+              <p>{tournamentData?.title}</p>
               <div className="hashtag d-flex">
                 <h3>#Hashtags</h3>
                 <h3>#Hashtags</h3>
