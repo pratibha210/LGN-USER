@@ -5,7 +5,7 @@ import Header from '../Compoonents/Header';
 import RightBarSmall from '../Compoonents/RightBarSmall';
 import Footer from '../Compoonents/Footer';
 import { httpRequest } from "../services/Helper"
-
+import Swal from 'sweetalert2';
 import gift from '../assets/img/gift-card.png';
 import points from '../assets/img/points.png';
 import filter from '../assets/img/filter.png';
@@ -49,6 +49,54 @@ const Store = () => {
             console.log(error);
         }
     }, []);
+    const showAlert = () => {
+        Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Yes, delete it!',
+          cancelButtonText: 'No, cancel!',
+          reverseButtons: true,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            Swal.fire(
+              'Deleted!',
+              'Your file has been deleted.',
+              'success'
+            );
+          } else if (result.dismiss === Swal.DismissReason.cancel) {
+            Swal.fire(
+              'Cancelled',
+              'Your file is safe :)',
+              'error'
+            );
+          }
+        });
+      };
+    const checkOut = useCallback(async () => {
+        try {
+          setLoading(true);
+          const data = { userId: user };
+          const res = await httpRequest('PUT', `api/v1/store/reedem-coupon/${"storeDetails?._id"}`, data);
+          // Show success modal
+          setModalContent({
+            message: 'Purchase Successful! Thank you for your purchase.',
+            isSuccess: true,
+          });
+          setCurrentModal(() => confirmModal);
+          setLoading(false);
+        } catch (error) {
+          // Show error modal
+          setModalContent({
+            message: 'Purchase failed. Please try again later.',
+            isSuccess: false,
+          });
+          setModalVisible(true);
+          setLoading(false);
+        }
+      }, ["storeDetails", user]);
+
 
 
     useState(() => {
@@ -107,10 +155,10 @@ const Store = () => {
                     <div className="gift-card d-flex">
                     {storeData?.length > 0 && storeData?.map((item)=>{
                         return(
-                        <div className="card-area" style={{}}>
+                        <div className="card-area" >
                             <img  style={{width: '100%'}}src={item?.image} alt="" />
                             <p>{item?.title}</p>
-                            <a href="#" className="btn point-btn">{item?.lgn_coin_amount} LP <img src={points} alt="" /> </a>
+                            <button onClick={()=>showAlert()} className="btn point-btn">{item?.lgn_coin_amount} LP <img src={points} alt="" /> </button>
                         </div>
                     )
                 }) }

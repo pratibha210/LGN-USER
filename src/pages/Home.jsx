@@ -20,6 +20,7 @@ import { useSearchParams } from "react-router-dom"
 const Home = () => {
   const {success_notify, error_notify, getLocalStorageData } = useAppContext();
   const [user, setUser] = useState({ token: "" })
+  const [selectedAnswer,setSelectedAnswer] = useState({})
   const [timeLeft, setTimeLeft ]= useState()
   const [questionList, setQuestionList] = useState([])
   // const [userData, setUserData] = useState({});
@@ -188,6 +189,8 @@ const Home = () => {
 
 
   const handleOptionPress = (questionId, option) => {
+    console.log(questionId,"sdfdsf");
+    
     if (selectedAnswer[questionId]) {
       error_notify('You have already selected an option for this question.');
       return;
